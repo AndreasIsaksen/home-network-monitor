@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-netwatch}
+      POSTGRES_USER: ${POSTGRES_USER:-netwatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netwatch} -d ${POSTGRES_DB:-netwatch}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  monitor:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-netwatch}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT:-55432}/${POSTGRES_DB:-netwatch}
+      TZ: ${TZ:-Etc/UTC}
+      SCHEDULE: ${SCHEDULE:-0 */6 * * *}
+      RUN_ON_START: ${RUN_ON_START:-true}
+      ROUTER_TARGETS: ${ROUTER_TARGETS:-auto}
+      DNS_CANDIDATES: ${DNS_CANDIDATES:-9.9.9.9,1.1.1.1,8.8.8.8}
+      ROUTER_PING_COUNT: ${ROUTER_PING_COUNT:-100}
+      DNS_SELECTION_PING_COUNT: ${DNS_SELECTION_PING_COUNT:-20}
+      DNS_PING_COUNT: ${DNS_PING_COUNT:-100}
+      PING_INTERVAL_SECONDS: ${PING_INTERVAL_SECONDS:-0.2}
+      SPEEDTEST_SERVER_ID: ${SPEEDTEST_SERVER_ID:-}
+    volumes:
+      - ./exports:/exports
+
+volumes:
+  postgres-data:

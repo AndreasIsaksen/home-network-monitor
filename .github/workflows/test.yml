@@ -1,0 +1,20 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  container-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test stage
+        run: docker build --target test -t home-network-monitor:test .
+      - name: Validate Compose configuration
+        env:
+          POSTGRES_PASSWORD: ci-only-placeholder
+        run: docker compose config --quiet
